@@ -8,10 +8,10 @@ this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## A note on threshold history
 
 **No published threshold has ever been lowered.** The design document proposes a
-median NLL reduction of 8% (gate G-D1); the measured median is +0.16%, and that
-gap is reported rather than closed by moving the bar. Every version entry below
-records what was measured and why a decision was taken, so the reasoning survives
-the person who took it.
+median NLL win (gate G-D1); the measured median on the repo's own generators is
+**−1.05%** (G-D1 FAIL), and that gap is reported rather than closed by moving the
+bar. Every version entry below records what was measured and why a decision was
+taken, so the reasoning survives the person who took it.
 
 ---
 
