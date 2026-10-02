@@ -1,0 +1,130 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A new push supersedes an in-flight run for the same ref: a superseded commit's
+# result is never interesting, and leaving both running wastes the minutes that a
+# broken build is waiting on someone to look at.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: lint (ruff ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Both matrix entries, because `target-version = "py312"` in pyproject.toml
+        # means the linter's *output* can differ by the interpreter it runs on.
+        python-version: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install ruff==0.16.9
+      - name: ruff check
+        run: ruff check .
+      - name: ruff format --check
+        run: ruff format --check .
+
+  test:
+    name: test (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      # Deliberately false: if 3.12 breaks, the 3.13 result is still worth knowing.
+      # A NumPy or SciPy upgrade that changes behaviour on one version is exactly
+      # the case this matrix exists to catch, and seeing only the first failure
+      # would hide half the evidence.
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: install pinned dependencies
+        run: pip install -r requirements.lock.txt
+      - name: install test tooling
+        run: pip install pytest pytest-cov
+      - name: run tests
+        # pythonpath=["."] lives in pyproject.toml's [tool.pytest.ini_options].
+        # Without it pytest cannot import the `densforge` package from the repo
+        # root and every job fails with ModuleNotFoundError.
+        run: pytest -q -W ignore::UserWarning --cov=densforge --cov-report=term --cov-report=xml
+        env:
+          # Pin single-threaded BLAS. Multi-threaded reductions sum in an
+          # order that depends on the scheduler, which perturbs the last bits and
+          # would make the bit-exactness invariants flaky rather than informative.
+          OMP_NUM_THREADS: "1"
+          OPENBLAS_NUM_THREADS: "1"
+          MKL_NUM_THREADS: "1"
+          NUMEXPR_NUM_THREADS: "1"
+          VECLIB_MAXIMUM_THREADS: "1"
+          PYTHONHASHSEED: "0"
+
+  coverage-gate:
+    name: coverage gate
+    runs-on: ubuntu-latest
+    needs: [test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -r requirements.lock.txt pytest pytest-cov
+      - name: enforce the coverage floor
+        # 80% is a floor, not a target. The modules that carry the project's
+        # claims (the flagship, the leakage firewall, the invariants) are far above
+        # it; the floor exists to catch a new module that arrives untested.
+        run: pytest -q -W ignore::UserWarning --cov=densforge --cov-report=term-missing --cov-fail-under=80
+        env:
+          OMP_NUM_THREADS: "1"
+          OPENBLAS_NUM_THREADS: "1"
+          MKL_NUM_THREADS: "1"
+
+  smoke:
+    name: smoke (demo --quick)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -r requirements.lock.txt
+      - name: run the end-to-end demo
+        # A package whose unit tests pass but whose entry point is broken is not
+        # working. The demo is the only check that exercises the CLI, the pipeline
+        # and the artefact round-trip together.
+        run: python examples/run_demo.py --quick
+        env:
+          OMP_NUM_THREADS: "1"
+          OPENBLAS_NUM_THREADS: "1"
+          MKL_NUM_THREADS: "1"
+
+  docker:
+    name: docker image builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: build the image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: densforge:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: verify the image runs
+        run: docker run --rm densforge:ci python -c "import densforge; print(densforge.__version__)"

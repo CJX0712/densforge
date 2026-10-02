@@ -1,0 +1,131 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "densforge"
+version = "0.1.0"
+description = "Density estimation and manifold learning fused into one closed loop (DensFuse)."
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+license = { text = "MIT" }
+authors = [{ name = "晨星", email = "CJX0712@users.noreply.github.com" }]
+maintainers = [{ name = "晨星", email = "CJX0712@users.noreply.github.com" }]
+keywords = [
+    "density-estimation",
+    "manifold-learning",
+    "diffusion-maps",
+    "kernel-density-estimation",
+    "scikit-learn",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "numpy>=2.0",
+    "scipy>=1.11",
+    "scikit-learn>=1.4",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.6"]
+
+[project.scripts]
+densforge = "densforge.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/CJX0712/densforge"
+Repository = "https://github.com/CJX0712/densforge"
+Issues = "https://github.com/CJX0712/densforge/issues"
+Changelog = "https://github.com/CJX0712/densforge/blob/main/CHANGELOG.md"
+
+# ---------------------------------------------------------------------------
+# pytest
+# ---------------------------------------------------------------------------
+# pythonpath = ["."] is MANDATORY: without it `pytest` cannot import the
+# `densforge` package from the repository root and CI fails with
+# ModuleNotFoundError: No module named 'densforge'.
+[tool.pytest.ini_options]
+minversion = "8.0"
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers --strict-config"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+markers = [
+    "slow: long-running tests (deselect with '-m \"not slow\"')",
+    "invariant: one of the 32 verifiable invariants from the design document",
+]
+
+[tool.coverage.run]
+branch = false
+source = ["densforge"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "\\.\\.\\.$",
+]
+
+# ---------------------------------------------------------------------------
+# ruff  (format BEFORE first commit -- `ruff format` rewrites line breaks and
+# must run after this file exists, otherwise CI's `ruff format --check` is red)
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 96
+target-version = "py312"
+extend-exclude = ["_probe"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "N",    # pep8-naming
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "SIM",  # flake8-simplify
+    "RUF",  # ruff-specific
+    "PT",   # flake8-pytest-style
+    "ARG",  # flake8-unused-arguments
+    "TID",  # flake8-tidy-imports (architecture: no relative parent imports)
+]
+ignore = [
+    "E501",    # line length is handled by the formatter
+    "PT011",   # pytest.raises(ValueError) without match -- too noisy here
+    "PT018",   # compound assertions read better than two lines in a test
+    "RUF012",  # ClassVar annotations on mutable class attrs are not always useful
+    "B008",    # function call in default arg (used for Protocol-free dataclass defaults)
+    "B017",    # pytest.raises(Exception) is right when asserting "this must not
+               # succeed" and the specific class is an implementation detail
+    "B024",    # the backend mixin is a namespace, not an ABC: its subclasses resolve
+               # a backend rather than implementing an abstract method
+    "N818",    # `IOErrorBase` is the name the error-code table specifies
+    "TID252",  # parent-relative imports are the project's own convention
+               # (`from ..core import x`); tests/test_architecture.py enforces the
+               # precise rule that matters -- an import must not escape the package
+    "N802", "N803", "N806",  # X, Y, T, P, k: mathematical names, used deliberately
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["ARG", "N802", "N803", "N806", "SIM117", "PT004"]
+"examples/*" = ["TID252"]
+"__init__.py" = ["F401"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["densforge"]
+combine-as-imports = true
+
+[tool.ruff.format]
+docstring-code-format = false

@@ -1,0 +1,11 @@
+# Loose constraints for development and for downstream users.
+# CI installs requirements.lock.txt instead, because the published performance
+# thresholds are bound to exact versions -- see the note there.
+numpy>=2.0
+scipy>=1.11
+scikit-learn>=1.4
+
+# Test and lint tooling.
+pytest>=8.0
+pytest-cov>=5.0
+ruff>=0.6

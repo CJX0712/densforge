@@ -1,0 +1,31 @@
+# Exact pins for CI and for reproducing published numbers.
+#
+# WHY THIS FILE EXISTS, SEPARATE FROM requirements.txt
+#
+# DensForge publishes performance thresholds. Those numbers are a property of
+# exact library versions, not of "recent" ones:
+#
+#   * scikit-learn 1.9 renamed TSNE.n_iter -> max_iter, added MDS.normalized_stress,
+#     and made BayesianGaussianMixture's n_components keyword-only. Any of those
+#     changes the numerical output or raises TypeError.
+#   * MDS.n_init's default is 1 on 1.9.1, not the 4 documented for 0.x. The default
+#     is a direct multiplier on the dominant cost in the benchmark.
+#   * NumPy 2 removed trapz, float_, cstack and friends. Reaching for one raises.
+#
+# So the matrix job installs THIS file. requirements.txt stays loose for humans and
+# for downstream users who are not reproducing a specific number.
+#
+# Verified working set (Python 3.13.14, Windows 11, single thread):
+numpy==2.5.3
+scipy==1.18.1
+scikit-learn==1.9.1
+
+# scikit-learn's own runtime dependencies, pinned for the same reason.
+joblib==1.6.0
+threadpoolctl==3.7.0
+
+# Test tooling.
+pytest==9.1.1
+iniconfig==2.3.0
+packaging==26.3
+pluggy==1.6.0
