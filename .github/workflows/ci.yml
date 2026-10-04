@@ -128,4 +128,9 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: verify the image runs
-        run: docker run --rm densforge:ci python -c "import densforge; print(densforge.__version__)"
+        # The image sets ENTRYPOINT to run_demo.py, so extra args after the
+        # tag would be forwarded to that script instead of python. Use
+        # --entrypoint to override it for the import smoke test.
+        run: >-
+          docker run --rm --entrypoint python densforge:ci
+          -c "import densforge; print(densforge.__version__)"
